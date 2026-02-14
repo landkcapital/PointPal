@@ -1125,6 +1125,64 @@ main {
   justify-content: center;
 }
 
+/* ===== Top Up ===== */
+.topup-section {
+  margin-bottom: 1.25rem;
+}
+
+.topup-btn {
+  width: 100%;
+  background: var(--bg-surface);
+  border: 1.5px dashed var(--border-hover);
+  color: var(--blue1);
+  font-weight: 600;
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.topup-btn:hover {
+  border-color: var(--blue1);
+  background: var(--glow);
+}
+
+.topup-form h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.topup-preview {
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  background: var(--bg);
+  border-radius: var(--radius-xs);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.topup-preview-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+
+.topup-preview-row span:first-child {
+  color: var(--text-muted);
+}
+
+.topup-preview-row span:last-child {
+  font-weight: 700;
+}
+
+.topup-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
 /* ===== History Page ===== */
 .history-controls {
   display: flex;

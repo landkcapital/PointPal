@@ -14,6 +14,11 @@ export default function BudgetDetail() {
   const [confirmDeleteBudget, setConfirmDeleteBudget] = useState(false);
   const [error, setError] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [showTopUp, setShowTopUp] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState("");
+  const [topUpSourceId, setTopUpSourceId] = useState("");
+  const [otherBudgets, setOtherBudgets] = useState([]);
+  const [transferring, setTransferring] = useState(false);
 
   async function handleDeleteBudget() {
     setDeleting(true);
@@ -45,6 +50,46 @@ export default function BudgetDetail() {
     }
   }
 
+  async function handleTopUp() {
+    const amount = parseFloat(topUpAmount);
+    if (!amount || amount <= 0 || !topUpSourceId) return;
+
+    const source = otherBudgets.find((b) => b.id === topUpSourceId);
+    if (!source) return;
+
+    setTransferring(true);
+    setError(null);
+    try {
+      const now = new Date().toISOString();
+      const [targetResult, sourceResult] = await Promise.all([
+        supabase.from("transactions").insert({
+          budget_id: id,
+          amount: -amount,
+          note: `Top up from ${source.name}`,
+          occurred_at: now,
+        }),
+        supabase.from("transactions").insert({
+          budget_id: topUpSourceId,
+          amount: amount,
+          note: `Transfer to ${budget.name}`,
+          occurred_at: now,
+        }),
+      ]);
+
+      if (targetResult.error) throw targetResult.error;
+      if (sourceResult.error) throw sourceResult.error;
+
+      setShowTopUp(false);
+      setTopUpAmount("");
+      setTopUpSourceId("");
+      await fetchData();
+    } catch (err) {
+      setError(err.message || "Failed to transfer");
+    } finally {
+      setTransferring(false);
+    }
+  }
+
   const fetchData = useCallback(async () => {
     try {
       const { data: budgetRows, error: budgetError } = await supabase
@@ -66,15 +111,63 @@ export default function BudgetDetail() {
       if (budgetData.type !== "subscription") {
         const periodStart = getPeriodStart(budgetData.period, budgetData.renew_anchor);
 
-        const { data: txData, error: txError } = await supabase
-          .from("transactions")
-          .select("*")
-          .eq("budget_id", id)
-          .gte("occurred_at", periodStart.toISOString())
-          .order("occurred_at", { ascending: false });
+        // Fetch this budget's transactions and all other spending budgets in parallel
+        const [txResult, othersResult] = await Promise.all([
+          supabase
+            .from("transactions")
+            .select("*")
+            .eq("budget_id", id)
+            .gte("occurred_at", periodStart.toISOString())
+            .order("occurred_at", { ascending: false }),
+          supabase
+            .from("budgets")
+            .select("*")
+            .neq("type", "subscription")
+            .neq("id", id)
+            .order("name"),
+        ]);
 
-        if (txError) throw txError;
-        setTransactions(txData || []);
+        if (txResult.error) throw txResult.error;
+        if (othersResult.error) throw othersResult.error;
+
+        setTransactions(txResult.data || []);
+
+        // Calculate remaining for each other budget
+        const others = othersResult.data || [];
+        if (others.length > 0) {
+          const budgetIds = others.map((b) => b.id);
+          let earliestStart = new Date();
+          const periodStarts = {};
+          for (const b of others) {
+            const ps = getPeriodStart(b.period, b.renew_anchor);
+            periodStarts[b.id] = ps.getTime();
+            if (ps < earliestStart) earliestStart = ps;
+          }
+
+          const { data: otherTx } = await supabase
+            .from("transactions")
+            .select("budget_id, amount, occurred_at")
+            .in("budget_id", budgetIds)
+            .gte("occurred_at", earliestStart.toISOString());
+
+          const spentMap = {};
+          for (const b of others) spentMap[b.id] = 0;
+          for (const t of otherTx || []) {
+            const ps = periodStarts[t.budget_id];
+            if (ps != null && new Date(t.occurred_at).getTime() >= ps) {
+              spentMap[t.budget_id] += t.amount;
+            }
+          }
+
+          setOtherBudgets(
+            others.map((b) => ({
+              ...b,
+              remaining: b.goal_amount - (spentMap[b.id] || 0),
+            }))
+          );
+        } else {
+          setOtherBudgets([]);
+        }
       }
 
       setError(null);
@@ -172,6 +265,102 @@ export default function BudgetDetail() {
       </div>
 
       {error && <p className="form-error" style={{ margin: "0.75rem 0" }}>{error}</p>}
+
+      {!isSubscription && otherBudgets.length > 0 && (
+        <div className="topup-section">
+          {showTopUp ? (
+            <div className="card topup-form">
+              <h3>Top Up {budget.name}</h3>
+              <div className="form-group">
+                <label>Amount</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={topUpAmount}
+                  onChange={(e) => setTopUpAmount(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="form-group">
+                <label>Take from</label>
+                <select
+                  value={topUpSourceId}
+                  onChange={(e) => setTopUpSourceId(e.target.value)}
+                >
+                  <option value="">-- Select a budget --</option>
+                  {otherBudgets
+                    .filter((b) => b.remaining > 0)
+                    .map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name} (${b.remaining.toFixed(2)} remaining)
+                      </option>
+                    ))}
+                </select>
+              </div>
+              {topUpSourceId && topUpAmount && parseFloat(topUpAmount) > 0 && (
+                <div className="topup-preview">
+                  {(() => {
+                    const source = otherBudgets.find((b) => b.id === topUpSourceId);
+                    const amt = parseFloat(topUpAmount) || 0;
+                    if (!source) return null;
+                    const sourceAfter = source.remaining - amt;
+                    const targetAfter = remaining + amt;
+                    return (
+                      <>
+                        <div className="topup-preview-row">
+                          <span>{budget.name} remaining:</span>
+                          <span className={targetAfter >= 0 ? "positive" : "negative"}>
+                            ${targetAfter.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="topup-preview-row">
+                          <span>{source.name} remaining:</span>
+                          <span className={sourceAfter >= 0 ? "positive" : "negative"}>
+                            ${sourceAfter.toFixed(2)}
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+              <div className="topup-actions">
+                <button
+                  className="btn primary"
+                  onClick={handleTopUp}
+                  disabled={transferring || !topUpSourceId || !topUpAmount || parseFloat(topUpAmount) <= 0}
+                >
+                  {transferring ? "Transferring..." : "Transfer"}
+                </button>
+                <button
+                  className="btn secondary"
+                  onClick={() => {
+                    setShowTopUp(false);
+                    setTopUpAmount("");
+                    setTopUpSourceId("");
+                  }}
+                  disabled={transferring}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              className="btn topup-btn"
+              onClick={() => {
+                setShowTopUp(true);
+                if (remaining < 0) {
+                  setTopUpAmount(Math.abs(remaining).toFixed(2));
+                }
+              }}
+            >
+              Top Up Budget
+            </button>
+          )}
+        </div>
+      )}
 
       {isSubscription ? (
         <div className="empty-state card">

@@ -1,13 +1,20 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
 
+function toLocalDatetime(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const h = String(date.getHours()).padStart(2, "0");
+  const min = String(date.getMinutes()).padStart(2, "0");
+  return `${y}-${m}-${d}T${h}:${min}`;
+}
+
 export default function AddTransactionModal({ budgets, onClose, onAdded }) {
   const [amount, setAmount] = useState("");
   const [budgetId, setBudgetId] = useState(budgets[0]?.id || "");
   const [note, setNote] = useState("");
-  const [occurredAt, setOccurredAt] = useState(
-    new Date().toISOString().slice(0, 16)
-  );
+  const [occurredAt, setOccurredAt] = useState(() => toLocalDatetime(new Date()));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
