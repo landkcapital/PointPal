@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabase";
-import { getFoodCategories, GROUP_COLORS, getUserNote } from "../lib/foods";
+import { getFoodCategories, GROUP_COLORS, getUserNote, STANDARD_MEALS, getStandardMealCost } from "../lib/foods";
 
 const SERVING_OPTIONS = [
   { value: 0.25, label: "\u00BC" },
@@ -18,6 +18,13 @@ export default function EditLogModal({ log, onClose, onSaved, profile }) {
   const allCategories = useMemo(() => getFoodCategories(pointsMode), [pointsMode]);
 
   const isRatedMeal = log.category === "rated_meal";
+  const isStandardMeal = log.category === "standard_meal";
+
+  // For standard meals, extract meal name and try to match template
+  const stdMealName = isStandardMeal ? (log.note || "Meal").split(" \u2022 ")[0] : "";
+  const stdMealMatch = isStandardMeal
+    ? STANDARD_MEALS.find((m) => log.note?.startsWith(m.name))
+    : null;
 
   const [selectedKey, setSelectedKey] = useState(log.category);
   const [servings, setServings] = useState(log.servings || 1);
@@ -26,6 +33,14 @@ export default function EditLogModal({ log, onClose, onSaved, profile }) {
   const [overridePoints, setOverridePoints] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  // Standard meal size state
+  const [stdEditSize, setStdEditSize] = useState(() => {
+    if (!isStandardMeal) return "medium";
+    if ((log.servings || 1) <= 0.75) return "small";
+    if ((log.servings || 1) >= 1.25) return "large";
+    return "medium";
+  });
 
   useEffect(() => {
     const scrollY = window.scrollY;
@@ -38,15 +53,25 @@ export default function EditLogModal({ log, onClose, onSaved, profile }) {
     };
   }, []);
 
-  // Auto-calculate points when category or servings change
+  // Auto-calculate points for regular food categories
   const selectedCat = allCategories.find((c) => c.key === selectedKey);
   const autoPoints = selectedCat ? Math.round(selectedCat.points * servings) : log.points;
 
+  // Auto-calculate points for standard meals
+  const stdSizeMultiplier = stdEditSize === "small" ? 0.7 : stdEditSize === "large" ? 1.5 : 1;
+  const stdAutoPoints = stdMealMatch
+    ? Math.round(getStandardMealCost(stdMealMatch, pointsMode) * stdSizeMultiplier)
+    : log.points;
+
   useEffect(() => {
-    if (!overridePoints && !isRatedMeal) {
-      setPoints(autoPoints);
+    if (!overridePoints) {
+      if (isStandardMeal && stdMealMatch) {
+        setPoints(stdAutoPoints);
+      } else if (!isRatedMeal && !isStandardMeal) {
+        setPoints(autoPoints);
+      }
     }
-  }, [autoPoints, overridePoints, isRatedMeal]);
+  }, [autoPoints, stdAutoPoints, overridePoints, isRatedMeal, isStandardMeal, stdMealMatch]);
 
   async function handleSave(e) {
     e.preventDefault();
@@ -55,12 +80,17 @@ export default function EditLogModal({ log, onClose, onSaved, profile }) {
 
     const updateData = {
       points: Number(points),
-      note: note || null,
     };
 
-    if (!isRatedMeal) {
+    if (isStandardMeal) {
+      updateData.servings = stdSizeMultiplier;
+      updateData.note = note ? `${stdMealName} \u2022 ${note}` : stdMealName;
+    } else if (isRatedMeal) {
+      updateData.note = note || null;
+    } else {
       updateData.category = selectedKey;
       updateData.servings = servings;
+      updateData.note = note || null;
     }
 
     const { error: updateError } = await supabase
@@ -88,7 +118,52 @@ export default function EditLogModal({ log, onClose, onSaved, profile }) {
         </div>
 
         <form onSubmit={handleSave}>
-          {isRatedMeal ? (
+          {isStandardMeal ? (
+            <>
+              <div className="edit-log-preview">
+                <span className="food-log-emoji">{stdMealMatch?.emoji || "\uD83C\uDF7D\uFE0F"}</span>
+                <span className="edit-log-name">{stdMealName}</span>
+              </div>
+
+              <label className="edit-section-label">Portion Size</label>
+              <div className="std-meal-sizes">
+                <button
+                  type="button"
+                  className={`std-meal-size-btn ${stdEditSize === "small" ? "active" : ""}`}
+                  onClick={() => setStdEditSize("small")}
+                >
+                  Small
+                </button>
+                <button
+                  type="button"
+                  className={`std-meal-size-btn ${stdEditSize === "medium" ? "active" : ""}`}
+                  onClick={() => setStdEditSize("medium")}
+                >
+                  Regular
+                </button>
+                <button
+                  type="button"
+                  className={`std-meal-size-btn ${stdEditSize === "large" ? "active" : ""}`}
+                  onClick={() => setStdEditSize("large")}
+                >
+                  Large
+                </button>
+              </div>
+
+              <div className="edit-auto-points">
+                {stdAutoPoints === 0 ? "Free!" : `${stdAutoPoints} point${stdAutoPoints !== 1 ? "s" : ""}`}
+                {!overridePoints && (
+                  <button
+                    type="button"
+                    className="override-link"
+                    onClick={() => setOverridePoints(true)}
+                  >
+                    Override
+                  </button>
+                )}
+              </div>
+            </>
+          ) : isRatedMeal ? (
             <div className="edit-log-preview">
               <span className="food-log-emoji">{"\uD83C\uDF7D\uFE0F"}</span>
               <span className="edit-log-name">Rated Meal</span>

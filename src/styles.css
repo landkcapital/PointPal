@@ -2514,10 +2514,21 @@ html, body {
     grid-template-columns: 1fr;
   }
 
+  /* Modal scroll fix: don't center modal, always start at top */
+  .modal-overlay {
+    padding: 0.75rem;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4rem);
+    align-items: flex-start;
+  }
+
+  .modal {
+    margin: 0;
+  }
+
   /* Food grid */
   .food-grid {
     grid-template-columns: repeat(3, 1fr);
-    max-height: 250px;
+    max-height: none;
   }
 
   /* Profile grid */

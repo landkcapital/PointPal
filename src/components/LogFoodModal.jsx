@@ -168,7 +168,12 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
     setSaving(true);
     setError(null);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      setError("Session expired — please sign in again");
+      setSaving(false);
+      return;
+    }
 
     let logNote = note || "";
     if (unit === "spoonfuls") {
@@ -203,7 +208,12 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
     setSaving(true);
     setError(null);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      setError("Session expired — please sign in again");
+      setSaving(false);
+      return;
+    }
 
     const mealNote = selectedMeal.name;
     const logNote = note ? `${mealNote} \u2022 ${note}` : mealNote;
@@ -235,7 +245,12 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
     setSaving(true);
     setError(null);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      setError("Session expired — please sign in again");
+      setSaving(false);
+      return;
+    }
 
     let autoNote;
     if (mealSize === "taste") {
