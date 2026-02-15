@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { signIn, signUp } from "../lib/auth";
+import { signIn, signUp, resendConfirmation } from "../lib/auth";
 
 export default function Login({ onAuth }) {
   const [email, setEmail] = useState("");
@@ -8,20 +8,23 @@ export default function Login({ onAuth }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
+  const [showResend, setShowResend] = useState(false);
+  const [resending, setResending] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setMessage(null);
+    setShowResend(false);
 
     try {
       if (isSignUp) {
         await signUp(email, password);
         setMessage("Check your email to confirm your account.");
+        setShowResend(true);
       } else {
         const data = await signIn(email, password);
-        // Set session immediately to prevent login bounce
         if (data?.session) {
           onAuth(data.session);
           return;
@@ -34,11 +37,24 @@ export default function Login({ onAuth }) {
     }
   }
 
+  async function handleResend() {
+    setResending(true);
+    setError(null);
+    try {
+      await resendConfirmation(email);
+      setMessage("Confirmation email resent! Check your inbox and spam folder.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setResending(false);
+    }
+  }
+
   return (
     <div className="login-page">
       <div className="login-container card">
-        <h1 className="login-logo">ZeroLine</h1>
-        <p className="login-subtitle">Personal Budget Tracker</p>
+        <h1 className="login-logo">PointPal</h1>
+        <p className="login-subtitle">Simple Point-Based Food Tracker</p>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Email</label>
@@ -63,6 +79,17 @@ export default function Login({ onAuth }) {
           </div>
           {error && <p className="form-error">{error}</p>}
           {message && <p className="form-success">{message}</p>}
+          {showResend && (
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={handleResend}
+              disabled={resending}
+              style={{ marginBottom: "0.5rem" }}
+            >
+              {resending ? "Resending..." : "Resend Confirmation Email"}
+            </button>
+          )}
           <button type="submit" className="btn primary" disabled={loading}>
             {loading ? "Please wait..." : isSignUp ? "Sign Up" : "Sign In"}
           </button>

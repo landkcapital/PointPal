@@ -15,7 +15,7 @@ export default function Header() {
       <header className="header">
         <div className="header-left">
           <h1 className="logo" onClick={() => navigate("/")}>
-            ZeroLine
+            PointPal
           </h1>
         </div>
         <nav className="header-nav desktop-nav">
@@ -24,12 +24,6 @@ export default function Header() {
             onClick={() => navigate("/")}
           >
             Home
-          </button>
-          <button
-            className={`nav-btn ${location.pathname === "/budgets" ? "active" : ""}`}
-            onClick={() => navigate("/budgets")}
-          >
-            Budgets
           </button>
           <button
             className={`nav-btn ${location.pathname === "/history" ? "active" : ""}`}
@@ -56,13 +50,6 @@ export default function Header() {
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
           <span>Home</span>
-        </button>
-        <button
-          className={`bottom-nav-btn ${location.pathname === "/budgets" ? "active" : ""}`}
-          onClick={() => navigate("/budgets")}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-          <span>Budgets</span>
         </button>
         <button
           className={`bottom-nav-btn ${location.pathname === "/history" ? "active" : ""}`}

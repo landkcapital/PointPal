@@ -15,6 +15,14 @@ export async function signUp(email, password) {
   return data;
 }
 
+export async function resendConfirmation(email) {
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+  });
+  if (error) throw error;
+}
+
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;

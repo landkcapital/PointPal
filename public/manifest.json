@@ -1,11 +1,11 @@
 {
-  "name": "ZeroLine",
-  "short_name": "ZeroLine",
-  "description": "Budget tracker – get to zero, stay on the line",
+  "name": "PointPal",
+  "short_name": "PointPal",
+  "description": "Simple point-based food tracker – eat smart, feel great",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f5f7fa",
-  "theme_color": "#2f7dff",
+  "theme_color": "#16a34a",
   "orientation": "portrait",
   "icons": [
     {

@@ -1,113 +1,98 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import {
-  getPeriodRange,
-  stepPeriod,
-  formatPeriodRange,
-} from "../lib/period";
+  getDayRange,
+  formatDate,
+  isToday,
+  getPointsColor,
+  getPointsGradient,
+} from "../lib/points";
+import { getCategoryByKey, formatLogDetail } from "../lib/foods";
+import EditLogModal from "../components/EditLogModal";
 import Loading from "../components/Loading";
 
-export default function History() {
-  const [period, setPeriod] = useState("fortnightly");
+export default function History({ profile, onFoodChange }) {
   const [refDate, setRefDate] = useState(new Date());
-  const [budgets, setBudgets] = useState([]);
-  const [transactions, setTransactions] = useState([]);
+  const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [editingLog, setEditingLog] = useState(null);
 
-  const { start, end } = getPeriodRange(period, refDate);
+  const dailyPoints = profile?.daily_points || 40;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const { start: s, end: e } = getPeriodRange(period, refDate);
+      const { start: s, end: e } = getDayRange(refDate);
 
-      const { data: budgetsData, error: budgetsErr } = await supabase
-        .from("budgets")
+      const { data, error: fetchError } = await supabase
+        .from("pp_food_logs")
         .select("*")
-        .order("name");
+        .gte("logged_at", s.toISOString())
+        .lte("logged_at", e.toISOString())
+        .order("logged_at", { ascending: false });
 
-      if (budgetsErr) throw budgetsErr;
-      setBudgets(budgetsData || []);
-
-      const { data: txData, error: txErr } = await supabase
-        .from("transactions")
-        .select("*")
-        .gte("occurred_at", s.toISOString())
-        .lte("occurred_at", e.toISOString())
-        .order("occurred_at", { ascending: false });
-
-      if (txErr) throw txErr;
-      setTransactions(txData || []);
+      if (fetchError) throw fetchError;
+      setLogs(data || []);
       setError(null);
     } catch (err) {
       setError(err.message || "Failed to load history");
     } finally {
       setLoading(false);
     }
-  }, [period, refDate]);
+  }, [refDate]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
   function handlePrev() {
-    setRefDate(stepPeriod(period, refDate, "prev"));
+    const d = new Date(refDate);
+    d.setDate(d.getDate() - 1);
+    setRefDate(d);
   }
 
   function handleNext() {
-    setRefDate(stepPeriod(period, refDate, "next"));
+    const d = new Date(refDate);
+    d.setDate(d.getDate() + 1);
+    setRefDate(d);
   }
 
-  function handlePeriodChange(newPeriod) {
-    setPeriod(newPeriod);
-    setRefDate(new Date());
+  async function handleDelete(logId) {
+    if (!window.confirm("Delete this entry?")) return;
+    await supabase.from("pp_food_logs").delete().eq("id", logId);
+    fetchData();
+    onFoodChange?.();
   }
 
-  const spentByBudget = {};
-  for (const t of transactions) {
-    spentByBudget[t.budget_id] = (spentByBudget[t.budget_id] || 0) + t.amount;
-  }
+  const totalUsed = logs.reduce((sum, log) => sum + log.points, 0);
+  const remaining = dailyPoints - totalUsed;
+  const color = getPointsColor(remaining, dailyPoints);
+  const gradient = getPointsGradient(remaining, dailyPoints);
+  const pct = dailyPoints > 0 ? Math.max(0, remaining / dailyPoints) : 1;
 
-  const budgetMap = {};
-  for (const b of budgets) {
-    budgetMap[b.id] = b;
-  }
-
-  const subscriptions = budgets.filter((b) => b.type === "subscription");
-  const spendingBudgets = budgets.filter((b) => b.type !== "subscription");
-
-  const totalSubscriptions = subscriptions.reduce((s, b) => s + b.goal_amount, 0);
-  const totalBudget = spendingBudgets.reduce((s, b) => s + b.goal_amount, 0);
-  const totalSpent = transactions.reduce((s, t) => s + t.amount, 0);
-  const totalRemaining = totalBudget - totalSpent;
+  const isFutureDay = (() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const ref = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate());
+    return ref > today;
+  })();
 
   return (
     <div className="page history-page">
       <div className="card history-controls">
-        <div className="history-period-selector">
-          {["weekly", "fortnightly", "4-weekly"].map((p) => (
-            <button
-              key={p}
-              className={`btn small ${period === p ? "active-period" : ""}`}
-              onClick={() => handlePeriodChange(p)}
-            >
-              {p === "weekly"
-                ? "Week"
-                : p === "fortnightly"
-                  ? "Fortnight"
-                  : "4 Weeks"}
-            </button>
-          ))}
-        </div>
         <div className="history-nav">
           <button className="btn small" onClick={handlePrev}>
             &larr;
           </button>
           <span className="history-range-label">
-            {formatPeriodRange(period, start, end)}
+            {isToday(refDate) ? "Today" : formatDate(refDate)}
           </span>
-          <button className="btn small" onClick={handleNext}>
+          <button
+            className="btn small"
+            onClick={handleNext}
+            disabled={isFutureDay}
+          >
             &rarr;
           </button>
         </div>
@@ -116,156 +101,124 @@ export default function History() {
       {loading ? (
         <Loading />
       ) : error ? (
-        <div className="card" style={{ padding: "1.5rem", textAlign: "center" }}>
+        <div
+          className="card"
+          style={{ padding: "1.5rem", textAlign: "center" }}
+        >
           <p className="form-error">{error}</p>
-          <button className="btn primary" onClick={fetchData} style={{ marginTop: "1rem" }}>
+          <button
+            className="btn primary"
+            onClick={fetchData}
+            style={{ marginTop: "1rem" }}
+          >
             Retry
           </button>
         </div>
       ) : (
         <>
-          <div className="card summary-card">
-            <div className="summary-bar summary-bar-4">
+          <div
+            className="card history-summary"
+            style={{ borderTop: `3px solid ${color}` }}
+          >
+            <div className="points-bar-track" style={{ marginBottom: "1rem" }}>
+              <div
+                className="points-bar-fill"
+                style={{
+                  width: `${pct * 100}%`,
+                  background: gradient,
+                }}
+              />
+            </div>
+            <div className="summary-bar summary-bar-3">
               <div className="summary-item">
-                <span className="summary-label">Subscriptions</span>
-                <span className="summary-value">
-                  ${totalSubscriptions.toFixed(2)}
-                </span>
+                <span className="summary-label">Used</span>
+                <span className="summary-value">{totalUsed}</span>
               </div>
               <div className="summary-item">
-                <span className="summary-label">Spending Budget</span>
-                <span className="summary-value">
-                  ${totalBudget.toFixed(2)}
-                </span>
-              </div>
-              <div className="summary-item">
-                <span className="summary-label">Spent</span>
-                <span className="summary-value">
-                  ${totalSpent.toFixed(2)}
-                </span>
+                <span className="summary-label">Daily Points</span>
+                <span className="summary-value">{dailyPoints}</span>
               </div>
               <div className="summary-item">
                 <span className="summary-label">Remaining</span>
                 <span
-                  className={`summary-value ${totalRemaining >= 0 ? "positive" : "negative"}`}
+                  className="summary-value"
+                  style={{ color }}
                 >
-                  ${totalRemaining.toFixed(2)}
+                  {remaining}
                 </span>
               </div>
             </div>
           </div>
 
-          {subscriptions.length > 0 && (
-            <>
-              <h3 className="section-title">Subscriptions</h3>
-              <div className="history-budget-list">
-                {subscriptions.map((b) => (
-                  <div key={b.id} className="card history-budget-row">
-                    <div className="history-budget-name">
-                      <span>{b.name}</span>
-                      <span className="type-badge subscription">Fixed</span>
-                      <span className="period-badge">{b.period}</span>
-                    </div>
-                    <div className="budget-stats">
-                      <div className="stat">
-                        <span className="stat-label">Committed</span>
-                        <span className="stat-value">
-                          ${b.goal_amount.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="progress-bar">
-                      <div
-                        className="progress-fill"
-                        style={{ width: "100%" }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          <h3 className="section-title">Spending Breakdown</h3>
-          <div className="history-budget-list">
-            {spendingBudgets.length === 0 ? (
-              <div className="empty-state card">
-                <p>No spending budgets.</p>
-              </div>
-            ) : (
-              spendingBudgets.map((b) => {
-                const bSpent = spentByBudget[b.id] || 0;
-                const bRemaining = b.goal_amount - bSpent;
-                const bProgress =
-                  b.goal_amount > 0 ? (bSpent / b.goal_amount) * 100 : 0;
+          <h3 className="section-title">Food Log</h3>
+          {logs.length === 0 ? (
+            <div className="empty-state card">
+              <p>
+                {isToday(refDate)
+                  ? "Nothing logged yet today."
+                  : "No food logged this day."}
+              </p>
+            </div>
+          ) : (
+            <div className="food-log-list">
+              {logs.map((log) => {
+                const cat = getCategoryByKey(log.category);
                 return (
-                  <div key={b.id} className="card history-budget-row">
-                    <div className="history-budget-name">
-                      <span>{b.name}</span>
-                      <span className="period-badge">{b.period}</span>
+                  <div key={log.id} className="card food-log-item">
+                    <div className="food-log-left">
+                      <span className="food-log-emoji">
+                        {cat?.emoji || "?"}
+                      </span>
+                      <div className="food-log-info">
+                        <span className="food-log-name">
+                          {cat?.name || log.category}
+                        </span>
+                        <span className="food-log-detail">
+                          {formatLogDetail(log)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="budget-stats">
-                      <div className="stat">
-                        <span className="stat-label">Goal</span>
-                        <span className="stat-value">
-                          ${b.goal_amount.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="stat">
-                        <span className="stat-label">Spent</span>
-                        <span className="stat-value">
-                          ${bSpent.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="stat">
-                        <span className="stat-label">Remaining</span>
-                        <span
-                          className={`stat-value ${bRemaining >= 0 ? "positive" : "negative"}`}
+                    <div className="food-log-right">
+                      <span className="food-log-points">
+                        -{log.points} pts
+                      </span>
+                      <span className="food-log-time">
+                        {new Date(log.logged_at).toLocaleTimeString(undefined, {
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                      <div className="food-log-actions">
+                        <button
+                          className="log-action-btn"
+                          onClick={() => setEditingLog(log)}
+                          title="Edit"
                         >
-                          ${bRemaining.toFixed(2)}
-                        </span>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                        <button
+                          className="log-action-btn log-action-delete"
+                          onClick={() => handleDelete(log.id)}
+                          title="Delete"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        </button>
                       </div>
-                    </div>
-                    <div className="progress-bar">
-                      <div
-                        className={`progress-fill ${bProgress > 100 ? "over" : ""}`}
-                        style={{ width: `${Math.min(bProgress, 100)}%` }}
-                      />
                     </div>
                   </div>
                 );
-              })
-            )}
-          </div>
-
-          <h3 className="section-title">All Transactions</h3>
-          {transactions.length === 0 ? (
-            <div className="empty-state card">
-              <p>No transactions in this period.</p>
-            </div>
-          ) : (
-            <div className="transaction-list">
-              {transactions.map((t) => (
-                <div key={t.id} className="card transaction-item">
-                  <div className="transaction-info">
-                    <span className="transaction-amount">
-                      ${t.amount.toFixed(2)}
-                    </span>
-                    <span className="transaction-budget-tag">
-                      {budgetMap[t.budget_id]?.name || "Unknown"}
-                    </span>
-                    <span className="transaction-note">
-                      {t.note || "No note"}
-                    </span>
-                  </div>
-                  <span className="transaction-date">
-                    {new Date(t.occurred_at).toLocaleString()}
-                  </span>
-                </div>
-              ))}
+              })}
             </div>
           )}
         </>
+      )}
+
+      {editingLog && (
+        <EditLogModal
+          log={editingLog}
+          onClose={() => setEditingLog(null)}
+          onSaved={() => { fetchData(); onFoodChange?.(); }}
+        />
       )}
     </div>
   );
