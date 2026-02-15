@@ -13,6 +13,54 @@ export const FOOD_CATEGORIES = [
   { key: "processed", name: "Processed / Fast Food", emoji: "\u{1F354}", points: 7, examples: "Burgers, pizza, chips, fried food, takeaway", group: "penalty" },
 ];
 
+/**
+ * Calorie-accurate point overrides (~50 calories per point per palm).
+ */
+const CALORIE_POINTS = {
+  vegetables: 1,
+  fruits: 1,
+  "lean-protein": 3,
+  grains: 3,
+  dairy: 3,
+  "fatty-protein": 4,
+  "red-meat": 5,
+  fats: 7,
+  alcohol: 4,
+  "sugary-drinks": 4,
+  sweets: 6,
+  processed: 8,
+};
+
+/**
+ * Get food categories with points adjusted for the selected mode.
+ */
+export function getFoodCategories(mode = "hybrid") {
+  if (mode === "calorie") {
+    return FOOD_CATEGORIES.map((c) => ({
+      ...c,
+      points: CALORIE_POINTS[c.key] ?? c.points,
+      group: CALORIE_POINTS[c.key] !== undefined ? getGroup(CALORIE_POINTS[c.key]) : c.group,
+    }));
+  }
+  return FOOD_CATEGORIES;
+}
+
+function getGroup(pts) {
+  if (pts <= 1) return "low";
+  if (pts <= 3) return "medium";
+  if (pts <= 5) return "high";
+  return "penalty";
+}
+
+/**
+ * Build a points lookup map for a given mode.
+ */
+export function getPointsMap(mode = "hybrid") {
+  const map = {};
+  getFoodCategories(mode).forEach((c) => { map[c.key] = c.points; });
+  return map;
+}
+
 export const GROUP_LABELS = {
   free: "Free Foods",
   low: "Low Points",

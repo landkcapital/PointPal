@@ -1,4 +1,4 @@
-import { FOOD_CATEGORIES } from "./foods";
+import { getPointsMap } from "./foods";
 
 /**
  * Dietary restriction definitions.
@@ -216,16 +216,15 @@ export const PREFERENCE_OPTIONS = [
   { key: "healthy", label: "Healthy Pick", emoji: "\uD83E\uDD66" },
 ];
 
-const catPointsMap = {};
-FOOD_CATEGORIES.forEach((c) => { catPointsMap[c.key] = c.points; });
-
 /**
  * Calculate the point cost of a meal template.
+ * Accepts an optional points map for mode-aware calculation.
  */
-export function getTemplateCost(template) {
+export function getTemplateCost(template, pointsMap) {
+  const map = pointsMap || getPointsMap("hybrid");
   let total = 0;
   for (const item of template.items) {
-    total += (catPointsMap[item.cat] || 0) * item.palms;
+    total += (map[item.cat] || 0) * item.palms;
   }
   return Math.round(total);
 }
@@ -240,13 +239,15 @@ function getSlotLabel(index, total) {
  * Suggest meals for the rest of the day.
  * Filters by dietary restrictions (hard filter) and adjusts scoring by taste mode (soft boost).
  */
-export function suggestMeals(remainingPoints, preferences, mealsLeft, dietaryRestrictions = [], tasteMode = "balanced") {
+export function suggestMeals(remainingPoints, preferences, mealsLeft, dietaryRestrictions = [], tasteMode = "balanced", pointsMode = "hybrid") {
   // Build set of blocked allergens from dietary restrictions
   const blockedAllergens = new Set();
   for (const rKey of dietaryRestrictions) {
     const def = DIETARY_RESTRICTIONS.find((r) => r.key === rKey);
     if (def) def.blocks.forEach((b) => blockedAllergens.add(b));
   }
+
+  const pointsMap = getPointsMap(pointsMode);
 
   // Hard filter: remove templates that contain blocked allergens
   const available = MEAL_TEMPLATES.filter((t) => {
@@ -264,10 +265,10 @@ export function suggestMeals(remainingPoints, preferences, mealsLeft, dietaryRes
     if (slotBudget <= 0) break;
 
     const scored = available
-      .filter((t) => !usedIds.has(t.id) && getTemplateCost(t) <= slotBudget + 2)
+      .filter((t) => !usedIds.has(t.id) && getTemplateCost(t, pointsMap) <= slotBudget + 2)
       .map((t) => {
         let score = 0;
-        const cost = getTemplateCost(t);
+        const cost = getTemplateCost(t, pointsMap);
         // Preference match: +10 per matching tag
         for (const pref of preferences) {
           if (t.tags.includes(pref)) score += 10;

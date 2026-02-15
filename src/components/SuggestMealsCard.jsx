@@ -19,14 +19,16 @@ export default function SuggestMealsCard({ remaining, onPlanSet, profile }) {
     catch { return []; }
   }, [profile?.dietary_restrictions]);
 
+  const pointsMode = profile?.points_mode || "hybrid";
+
   const quickSuggestion = useMemo(
-    () => suggestMeals(remaining, [], 2, dietaryRestrictions),
-    [remaining, dietaryRestrictions]
+    () => suggestMeals(remaining, [], 2, dietaryRestrictions, "balanced", pointsMode),
+    [remaining, dietaryRestrictions, pointsMode]
   );
 
   const detailedSuggestion = useMemo(
-    () => suggestMeals(remaining, preferences, mealsLeft, dietaryRestrictions, tasteMode),
-    [remaining, preferences, mealsLeft, dietaryRestrictions, tasteMode]
+    () => suggestMeals(remaining, preferences, mealsLeft, dietaryRestrictions, tasteMode, pointsMode),
+    [remaining, preferences, mealsLeft, dietaryRestrictions, tasteMode, pointsMode]
   );
 
   const activeSuggestion = expanded ? detailedSuggestion : quickSuggestion;

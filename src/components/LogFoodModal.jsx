@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabase";
-import { FOOD_CATEGORIES, GROUP_COLORS } from "../lib/foods";
+import { getFoodCategories, GROUP_COLORS } from "../lib/foods";
 
 const PALM_OPTIONS = [
   { value: 0.25, label: "\u00BC" },
@@ -63,6 +63,8 @@ function getWindowPenalty(profile, logDate) {
 }
 
 export default function LogFoodModal({ onClose, onAdded, profile }) {
+  const pointsMode = profile?.points_mode || "hybrid";
+  const categories = useMemo(() => getFoodCategories(pointsMode), [pointsMode]);
   const [mode, setMode] = useState("pick"); // "pick" or "rate"
 
   // --- Pick Food state ---
@@ -113,7 +115,7 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
   const penalty = getWindowPenalty(profile, logDate);
 
   // Pick mode calculations
-  const selectedCat = FOOD_CATEGORIES.find((c) => c.key === selectedKey);
+  const selectedCat = categories.find((c) => c.key === selectedKey);
   const isDrink = selectedKey === "alcohol" || selectedKey === "sugary-drinks";
   const palmEquiv = unit === "spoonfuls" ? servings * 0.2 : servings;
   const basePickPoints = selectedCat ? Math.round(selectedCat.points * palmEquiv) : 0;
@@ -297,7 +299,7 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
         {mode === "pick" && (
           <form onSubmit={handlePickSubmit}>
             <div className="food-grid">
-              {FOOD_CATEGORIES.map((cat) => (
+              {categories.map((cat) => (
                 <button
                   key={cat.key}
                   type="button"

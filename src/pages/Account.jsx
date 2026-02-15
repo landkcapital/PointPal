@@ -198,6 +198,55 @@ function EatingWindowCard({ profile, userId, onUpdate }) {
   );
 }
 
+function PointsModeCard({ profile, userId, onUpdate }) {
+  const [mode, setMode] = useState(profile.points_mode || "hybrid");
+  const [saving, setSaving] = useState(false);
+
+  async function handleChange(newMode) {
+    if (newMode === mode) return;
+    setMode(newMode);
+    setSaving(true);
+    await supabase
+      .from("pp_profiles")
+      .update({
+        points_mode: newMode,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId);
+    await onUpdate();
+    setSaving(false);
+  }
+
+  return (
+    <div className="card points-mode-card">
+      <h3>Points Mode</h3>
+      <p className="eating-window-desc">
+        Choose how food points are calculated.
+      </p>
+      <div className="points-mode-toggle">
+        <button
+          type="button"
+          className={`points-mode-btn ${mode === "hybrid" ? "active" : ""}`}
+          onClick={() => handleChange("hybrid")}
+          disabled={saving}
+        >
+          <span className="points-mode-btn-title">Hybrid</span>
+          <span className="points-mode-btn-desc">Incentive-based — vegetables are free, penalties for junk food</span>
+        </button>
+        <button
+          type="button"
+          className={`points-mode-btn ${mode === "calorie" ? "active" : ""}`}
+          onClick={() => handleChange("calorie")}
+          disabled={saving}
+        >
+          <span className="points-mode-btn-title">Calorie Accurate</span>
+          <span className="points-mode-btn-desc">~50 cal per point per palm — reflects true energy density</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function DietaryRestrictionsCard({ profile, userId, onUpdate }) {
   const [enabled, setEnabled] = useState(() => {
     try {
@@ -645,6 +694,7 @@ export default function Account({ profile, onProfileUpdate }) {
         <>
           <EatingWindowCard profile={profile} userId={user?.id} onUpdate={onProfileUpdate} />
           <DietaryRestrictionsCard profile={profile} userId={user?.id} onUpdate={onProfileUpdate} />
+          <PointsModeCard profile={profile} userId={user?.id} onUpdate={onProfileUpdate} />
           <MacrosSettingsCard profile={profile} userId={user?.id} onUpdate={onProfileUpdate} />
         </>
       )}

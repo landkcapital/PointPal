@@ -80,3 +80,6 @@ ALTER TABLE pp_profiles ADD COLUMN IF NOT EXISTS physique_goal TEXT DEFAULT NULL
 
 -- 9. Dietary restrictions (stored as JSON array text)
 ALTER TABLE pp_profiles ADD COLUMN IF NOT EXISTS dietary_restrictions TEXT DEFAULT '[]';
+
+-- 10. Points mode: hybrid (incentive-based) or calorie (calorie-accurate)
+ALTER TABLE pp_profiles ADD COLUMN IF NOT EXISTS points_mode TEXT DEFAULT 'hybrid';
