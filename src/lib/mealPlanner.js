@@ -9,7 +9,7 @@ export const DIETARY_RESTRICTIONS = [
   { key: "dairy_free", label: "Dairy-Free", emoji: "\uD83E\uDD5B", blocks: ["dairy"] },
   { key: "nut_free", label: "Nut-Free", emoji: "\uD83E\uDD5C", blocks: ["nuts"] },
   { key: "vegetarian", label: "Vegetarian", emoji: "\uD83E\uDD6C", blocks: ["meat", "fish"] },
-  { key: "no_red_meat", label: "No Red Meat", emoji: "\uD83D\uDC04", blocks: ["red_meat"] },
+
   { key: "sugar_free", label: "Sugar-Free", emoji: "\uD83C\uDF6C", blocks: ["sugar"] },
 ];
 

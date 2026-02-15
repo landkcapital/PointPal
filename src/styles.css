@@ -829,6 +829,16 @@ main {
   box-shadow: var(--shadow-md);
 }
 
+.food-grid-item.drink-back-btn {
+  background: var(--bg);
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+.food-grid-item.drink-back-btn .food-grid-emoji {
+  font-size: 1.2rem;
+}
+
 .food-grid-emoji {
   font-size: 1.5rem;
   line-height: 1;
@@ -1361,6 +1371,16 @@ main {
   text-overflow: ellipsis;
 }
 
+.food-log-note {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .food-log-right {
   display: flex;
   flex-direction: column;
@@ -1429,6 +1449,76 @@ main {
   font-size: 1rem;
   font-weight: 600;
   color: var(--text);
+}
+
+.edit-section-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.edit-category-scroll {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding-bottom: 0.4rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.edit-category-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.edit-cat-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.4rem 0.5rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--bg);
+  cursor: pointer;
+  flex-shrink: 0;
+  min-width: 3.5rem;
+  transition: all 0.15s ease;
+}
+
+.edit-cat-emoji {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.edit-cat-name {
+  font-size: 0.55rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.edit-auto-points {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.override-link {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
 }
 
 /* ===== History Page ===== */
@@ -2233,15 +2323,26 @@ html, body {
 @media (max-width: 640px) {
   .header {
     padding: 0.75rem 1rem;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     z-index: 100;
+    background: var(--primary);
+    border-bottom: none;
+    box-shadow: none;
+  }
+
+  .logo {
+    background: none;
+    -webkit-background-clip: unset;
+    -webkit-text-fill-color: #ffffff;
+    background-clip: unset;
   }
 
   main {
-    padding-top: 53px;
+    padding-top: calc(53px + env(safe-area-inset-top, 0px));
     min-height: 100vh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;

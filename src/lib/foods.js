@@ -96,22 +96,64 @@ export function formatServings(n) {
 }
 
 /**
- * Format the detail line for a food log entry.
- * Detects spoonful entries from the note prefix and displays them properly.
+ * Drink sub-types for drill-down selection.
+ */
+export const DRINK_SUBTYPES = {
+  "alcohol": [
+    { key: "beer", name: "Beer", emoji: "\uD83C\uDF7A" },
+    { key: "wine", name: "Wine", emoji: "\uD83C\uDF77" },
+    { key: "spirits", name: "Spirits", emoji: "\uD83E\uDD43" },
+    { key: "cocktails", name: "Cocktails", emoji: "\uD83C\uDF79" },
+  ],
+  "sugary-drinks": [
+    { key: "soda", name: "Soda", emoji: "\uD83E\uDD64" },
+    { key: "juice", name: "Juice", emoji: "\uD83E\uDDC3" },
+    { key: "energy_drink", name: "Energy Drink", emoji: "\u26A1" },
+    { key: "sweet_coffee", name: "Sweet Coffee", emoji: "\u2615" },
+  ],
+};
+
+/**
+ * Format the detail line for a food log entry (serving info only, no user note).
  */
 export function formatLogDetail(log) {
   if (log.category === "rated_meal") {
-    return log.note || "Rated meal";
+    const parts = (log.note || "Rated meal").split(" \u2022 ");
+    const ratingLabels = ["Very Healthy", "Healthy", "Average", "Unhealthy", "Very Unhealthy"];
+    const autoParts = parts.filter((p, i) =>
+      i === 0 || ratingLabels.includes(p) || p.includes("guided rating")
+    );
+    return autoParts.join(" \u2022 ") || "Rated meal";
   }
   const match = log.note?.match(/^(\d+)\s*(spoonfuls?|sips?)(?:\s*\u2022\s*(.*))?$/);
   if (match) {
     const count = parseInt(match[1]);
     const unitWord = match[2].startsWith("sip") ? "sip" : "spoonful";
-    const userNote = match[3] || "";
-    return `${count} ${unitWord}${count !== 1 ? "s" : ""}${userNote ? ` \u2022 ${userNote}` : ""}`;
+    return `${count} ${unitWord}${count !== 1 ? "s" : ""}`;
   }
   const isDrink = log.category === "alcohol" || log.category === "sugary-drinks";
   const unit = isDrink ? "glass" : "palm";
   const plural = log.servings !== 1 ? (isDrink ? "es" : "s") : "";
-  return `${formatServings(log.servings)} ${unit}${plural}${log.note ? ` \u2022 ${log.note}` : ""}`;
+  return `${formatServings(log.servings)} ${unit}${plural}`;
+}
+
+/**
+ * Extract just the user-written note from a food log entry.
+ */
+export function getUserNote(log) {
+  if (!log.note) return null;
+  if (log.category === "rated_meal") {
+    const parts = log.note.split(" \u2022 ");
+    const ratingLabels = ["Very Healthy", "Healthy", "Average", "Unhealthy", "Very Unhealthy"];
+    const userParts = parts.filter((p, i) => {
+      if (i === 0) return false;
+      if (ratingLabels.includes(p)) return false;
+      if (p.includes("guided rating")) return false;
+      return true;
+    });
+    return userParts.length > 0 ? userParts.join(" \u2022 ") : null;
+  }
+  const match = log.note.match(/^(\d+)\s*(spoonfuls?|sips?)(?:\s*\u2022\s*(.*))?$/);
+  if (match) return match[3] || null;
+  return log.note;
 }

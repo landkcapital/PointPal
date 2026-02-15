@@ -7,7 +7,7 @@ import {
   getPointsColor,
   getPointsGradient,
 } from "../lib/points";
-import { getCategoryByKey, formatLogDetail } from "../lib/foods";
+import { getCategoryByKey, formatLogDetail, getUserNote } from "../lib/foods";
 import EditLogModal from "../components/EditLogModal";
 import Loading from "../components/Loading";
 
@@ -176,6 +176,9 @@ export default function History({ profile, onFoodChange }) {
                         <span className="food-log-detail">
                           {formatLogDetail(log)}
                         </span>
+                        {getUserNote(log) && (
+                          <span className="food-log-note">{getUserNote(log)}</span>
+                        )}
                       </div>
                     </div>
                     <div className="food-log-right">
@@ -218,6 +221,7 @@ export default function History({ profile, onFoodChange }) {
           log={editingLog}
           onClose={() => setEditingLog(null)}
           onSaved={() => { fetchData(); onFoodChange?.(); }}
+          profile={profile}
         />
       )}
     </div>

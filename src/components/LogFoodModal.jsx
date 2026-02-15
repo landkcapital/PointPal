@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabase";
-import { getFoodCategories, GROUP_COLORS } from "../lib/foods";
+import { getFoodCategories, GROUP_COLORS, DRINK_SUBTYPES } from "../lib/foods";
 
 const PALM_OPTIONS = [
   { value: 0.25, label: "\u00BC" },
@@ -69,6 +69,7 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
 
   // --- Pick Food state ---
   const [selectedKey, setSelectedKey] = useState(null);
+  const [drinkView, setDrinkView] = useState(null); // null or "alcohol" or "sugary-drinks"
   const [unit, setUnit] = useState("palms"); // "palms" or "spoonfuls"
   const [servings, setServings] = useState(1);
   const [note, setNote] = useState("");
@@ -298,31 +299,75 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
         {/* ========== PICK FOOD MODE ========== */}
         {mode === "pick" && (
           <form onSubmit={handlePickSubmit}>
-            <div className="food-grid">
-              {categories.map((cat) => (
+            {drinkView ? (
+              <div className="food-grid">
                 <button
-                  key={cat.key}
                   type="button"
-                  className={`food-grid-item ${selectedKey === cat.key ? "selected" : ""}`}
-                  onClick={() => setSelectedKey(cat.key)}
-                  style={{
-                    borderColor:
-                      selectedKey === cat.key
-                        ? GROUP_COLORS[cat.group]
-                        : undefined,
-                  }}
+                  className="food-grid-item drink-back-btn"
+                  onClick={() => setDrinkView(null)}
                 >
-                  <span className="food-grid-emoji">{cat.emoji}</span>
-                  <span className="food-grid-name">{cat.name}</span>
-                  <span
-                    className="food-grid-pts"
-                    style={{ color: GROUP_COLORS[cat.group] }}
-                  >
-                    {cat.points === 0 ? "Free" : `${cat.points} pts`}
-                  </span>
+                  <span className="food-grid-emoji">&larr;</span>
+                  <span className="food-grid-name">Back</span>
                 </button>
-              ))}
-            </div>
+                {DRINK_SUBTYPES[drinkView].map((sub) => {
+                  const parentCat = categories.find((c) => c.key === drinkView);
+                  return (
+                    <button
+                      key={sub.key}
+                      type="button"
+                      className="food-grid-item"
+                      onClick={() => {
+                        setSelectedKey(drinkView);
+                        setNote(sub.name);
+                        setDrinkView(null);
+                      }}
+                    >
+                      <span className="food-grid-emoji">{sub.emoji}</span>
+                      <span className="food-grid-name">{sub.name}</span>
+                      <span
+                        className="food-grid-pts"
+                        style={{ color: GROUP_COLORS[parentCat?.group] }}
+                      >
+                        {parentCat?.points} pts
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="food-grid">
+                {categories.map((cat) => (
+                  <button
+                    key={cat.key}
+                    type="button"
+                    className={`food-grid-item ${selectedKey === cat.key ? "selected" : ""}`}
+                    onClick={() => {
+                      if (DRINK_SUBTYPES[cat.key]) {
+                        setDrinkView(cat.key);
+                        setSelectedKey(null);
+                      } else {
+                        setSelectedKey(cat.key);
+                      }
+                    }}
+                    style={{
+                      borderColor:
+                        selectedKey === cat.key
+                          ? GROUP_COLORS[cat.group]
+                          : undefined,
+                    }}
+                  >
+                    <span className="food-grid-emoji">{cat.emoji}</span>
+                    <span className="food-grid-name">{cat.name}</span>
+                    <span
+                      className="food-grid-pts"
+                      style={{ color: GROUP_COLORS[cat.group] }}
+                    >
+                      {cat.points === 0 ? "Free" : `${cat.points} pts`}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
 
             {selectedCat && (
               <>
@@ -380,7 +425,7 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
                     type="text"
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    placeholder="e.g. Lunch, snack..."
+                    placeholder="What is it? e.g. Chicken stir-fry..."
                   />
                 </div>
 

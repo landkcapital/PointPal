@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { getDayRange, getPointsGradient, getPointsGlow, getPointsColor } from "../lib/points";
-import { getCategoryByKey, formatLogDetail } from "../lib/foods";
+import { getCategoryByKey, formatLogDetail, getUserNote } from "../lib/foods";
 import LogFoodModal from "../components/LogFoodModal";
 import EditLogModal from "../components/EditLogModal";
 import CanIEatCard from "../components/CanIEatCard";
@@ -152,6 +152,9 @@ export default function Home({ profile, onFoodChange }) {
                     <span className="food-log-detail">
                       {formatLogDetail(log)}
                     </span>
+                    {getUserNote(log) && (
+                      <span className="food-log-note">{getUserNote(log)}</span>
+                    )}
                   </div>
                 </div>
                 <div className="food-log-right">
@@ -228,6 +231,7 @@ export default function Home({ profile, onFoodChange }) {
           log={editingLog}
           onClose={() => setEditingLog(null)}
           onSaved={fetchToday}
+          profile={profile}
         />
       )}
 
