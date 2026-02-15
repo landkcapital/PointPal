@@ -1469,6 +1469,8 @@ main {
   justify-content: center;
   z-index: 200;
   padding: 1rem;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal {
@@ -1476,8 +1478,14 @@ main {
   max-width: 440px;
   animation: modalIn 0.2s ease;
   box-shadow: var(--shadow-lg);
-  max-height: 90vh;
-  overflow-y: auto;
+  max-height: none;
+}
+
+/* Lock body scroll when modal is open */
+body.modal-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
 }
 
 @keyframes modalIn {

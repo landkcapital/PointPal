@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { getCategoryByKey } from "../lib/foods";
 
@@ -7,6 +7,17 @@ export default function EditLogModal({ log, onClose, onSaved }) {
   const [note, setNote] = useState(log.note || "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    document.body.classList.add("modal-open");
+    document.body.style.top = `-${scrollY}px`;
+    return () => {
+      document.body.classList.remove("modal-open");
+      document.body.style.top = "";
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
 
   const cat = getCategoryByKey(log.category);
 

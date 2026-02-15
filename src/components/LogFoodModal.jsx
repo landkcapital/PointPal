@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { FOOD_CATEGORIES, GROUP_COLORS } from "../lib/foods";
 
@@ -87,6 +87,18 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  // Lock body scroll while modal is open
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    document.body.classList.add("modal-open");
+    document.body.style.top = `-${scrollY}px`;
+    return () => {
+      document.body.classList.remove("modal-open");
+      document.body.style.top = "";
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
 
   // Build the log date for penalty calculation
   const logDate = (() => {

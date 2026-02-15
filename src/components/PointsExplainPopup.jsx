@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { getGoalByKey } from "../lib/points";
 import { PHYSIQUE_GOALS, getMacroTargets, MACRO_META } from "../lib/macros";
 
@@ -9,6 +10,17 @@ const ACTIVITY_LABELS = {
 };
 
 export default function PointsExplainPopup({ type, profile, onClose, onNavigate }) {
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    document.body.classList.add("modal-open");
+    document.body.style.top = `-${scrollY}px`;
+    return () => {
+      document.body.classList.remove("modal-open");
+      document.body.style.top = "";
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
+
   const physiqueGoal = PHYSIQUE_GOALS.find((g) => g.key === profile?.physique_goal);
   const macroTargets = getMacroTargets(profile?.daily_points || 0, profile?.physique_goal);
 
