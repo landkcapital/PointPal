@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabase";
-import { getFoodCategories, GROUP_COLORS, DRINK_SUBTYPES } from "../lib/foods";
+import { getFoodCategories, GROUP_COLORS, DRINK_SUBTYPES, STANDARD_MEALS, getStandardMealCost } from "../lib/foods";
 
 const PALM_OPTIONS = [
   { value: 0.25, label: "\u00BC" },
@@ -70,6 +70,9 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
   // --- Pick Food state ---
   const [selectedKey, setSelectedKey] = useState(null);
   const [drinkView, setDrinkView] = useState(null); // null or "alcohol" or "sugary-drinks"
+  const [mealView, setMealView] = useState(false);
+  const [selectedMeal, setSelectedMeal] = useState(null);
+  const [stdMealSize, setStdMealSize] = useState("medium"); // "small", "medium", "large"
   const [unit, setUnit] = useState("palms"); // "palms" or "spoonfuls"
   const [servings, setServings] = useState(1);
   const [note, setNote] = useState("");
@@ -122,6 +125,11 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
   const basePickPoints = selectedCat ? Math.round(selectedCat.points * palmEquiv) : 0;
   const totalPoints = Math.round(basePickPoints * penalty);
 
+  // Standard meal calculations
+  const stdMealBaseCost = selectedMeal ? getStandardMealCost(selectedMeal, pointsMode) : 0;
+  const stdMealSizeMultiplier = stdMealSize === "small" ? 0.7 : stdMealSize === "large" ? 1.5 : 1;
+  const stdMealPoints = Math.round(Math.round(stdMealBaseCost * stdMealSizeMultiplier) * penalty);
+
   // Rate mode calculations
   const sizeMultiplier = mealSize === "taste"
     ? tasteSpoonfuls * 0.15
@@ -155,6 +163,7 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
 
   async function handlePickSubmit(e) {
     e.preventDefault();
+    if (selectedMeal) return handleMealSubmit();
     if (!selectedCat) return;
     setSaving(true);
     setError(null);
@@ -177,6 +186,37 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
         servings: palmEquiv,
         points: totalPoints,
         note: logNote || null,
+        logged_at: loggedAt.toISOString(),
+      });
+
+    if (insertError) {
+      setError(insertError.message);
+      setSaving(false);
+      return;
+    }
+    onAdded();
+    onClose();
+  }
+
+  async function handleMealSubmit() {
+    if (!selectedMeal) return;
+    setSaving(true);
+    setError(null);
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const mealNote = selectedMeal.name;
+    const logNote = note ? `${mealNote} \u2022 ${note}` : mealNote;
+
+    const loggedAt = logTime === "now" ? new Date() : logDate;
+    const { error: insertError } = await supabase
+      .from("pp_food_logs")
+      .insert({
+        user_id: user.id,
+        category: "standard_meal",
+        servings: stdMealSizeMultiplier,
+        points: stdMealPoints,
+        note: logNote,
         logged_at: loggedAt.toISOString(),
       });
 
@@ -299,7 +339,37 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
         {/* ========== PICK FOOD MODE ========== */}
         {mode === "pick" && (
           <form onSubmit={handlePickSubmit}>
-            {drinkView ? (
+            {mealView ? (
+              <div className="food-grid">
+                <button
+                  type="button"
+                  className="food-grid-item drink-back-btn"
+                  onClick={() => setMealView(false)}
+                >
+                  <span className="food-grid-emoji">&larr;</span>
+                  <span className="food-grid-name">Back</span>
+                </button>
+                {STANDARD_MEALS.map((meal) => (
+                  <button
+                    key={meal.key}
+                    type="button"
+                    className="food-grid-item"
+                    onClick={() => {
+                      setSelectedMeal(meal);
+                      setSelectedKey(null);
+                      setMealView(false);
+                      setStdMealSize("medium");
+                    }}
+                  >
+                    <span className="food-grid-emoji">{meal.emoji}</span>
+                    <span className="food-grid-name">{meal.name}</span>
+                    <span className="food-grid-pts" style={{ color: "var(--primary)" }}>
+                      {getStandardMealCost(meal, pointsMode)} pts
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : drinkView ? (
               <div className="food-grid">
                 <button
                   type="button"
@@ -318,6 +388,7 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
                       className="food-grid-item"
                       onClick={() => {
                         setSelectedKey(drinkView);
+                        setSelectedMeal(null);
                         setNote(sub.name);
                         setDrinkView(null);
                       }}
@@ -335,38 +406,127 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
                 })}
               </div>
             ) : (
-              <div className="food-grid">
-                {categories.map((cat) => (
-                  <button
-                    key={cat.key}
-                    type="button"
-                    className={`food-grid-item ${selectedKey === cat.key ? "selected" : ""}`}
-                    onClick={() => {
-                      if (DRINK_SUBTYPES[cat.key]) {
-                        setDrinkView(cat.key);
-                        setSelectedKey(null);
-                      } else {
-                        setSelectedKey(cat.key);
-                      }
-                    }}
-                    style={{
-                      borderColor:
-                        selectedKey === cat.key
-                          ? GROUP_COLORS[cat.group]
-                          : undefined,
-                    }}
-                  >
-                    <span className="food-grid-emoji">{cat.emoji}</span>
-                    <span className="food-grid-name">{cat.name}</span>
-                    <span
-                      className="food-grid-pts"
-                      style={{ color: GROUP_COLORS[cat.group] }}
+              <>
+                <button
+                  type="button"
+                  className="common-meals-btn"
+                  onClick={() => {
+                    setMealView(true);
+                    setSelectedKey(null);
+                    setSelectedMeal(null);
+                    setNote("");
+                  }}
+                >
+                  <span>{"\uD83C\uDF7D\uFE0F"} Common Meals</span>
+                  <span className="common-meals-arrow">&rarr;</span>
+                </button>
+                <div className="food-grid">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.key}
+                      type="button"
+                      className={`food-grid-item ${selectedKey === cat.key ? "selected" : ""}`}
+                      onClick={() => {
+                        setSelectedMeal(null);
+                        if (DRINK_SUBTYPES[cat.key]) {
+                          setDrinkView(cat.key);
+                          setSelectedKey(null);
+                        } else {
+                          setSelectedKey(cat.key);
+                        }
+                      }}
+                      style={{
+                        borderColor:
+                          selectedKey === cat.key
+                            ? GROUP_COLORS[cat.group]
+                            : undefined,
+                      }}
                     >
-                      {cat.points === 0 ? "Free" : `${cat.points} pts`}
-                    </span>
+                      <span className="food-grid-emoji">{cat.emoji}</span>
+                      <span className="food-grid-name">{cat.name}</span>
+                      <span
+                        className="food-grid-pts"
+                        style={{ color: GROUP_COLORS[cat.group] }}
+                      >
+                        {cat.points === 0 ? "Free" : `${cat.points} pts`}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {selectedMeal && !selectedCat && (
+              <>
+                <div className="meal-selected-preview">
+                  <span className="food-grid-emoji">{selectedMeal.emoji}</span>
+                  <span className="meal-selected-name">{selectedMeal.name}</span>
+                  <button
+                    type="button"
+                    className="meal-change-btn"
+                    onClick={() => { setSelectedMeal(null); setMealView(true); }}
+                  >
+                    Change
                   </button>
-                ))}
-              </div>
+                </div>
+
+                <div className="servings-section">
+                  <label className="servings-label">Portion size</label>
+                  <div className="std-meal-sizes">
+                    <button
+                      type="button"
+                      className={`std-meal-size-btn ${stdMealSize === "small" ? "active" : ""}`}
+                      onClick={() => setStdMealSize("small")}
+                    >
+                      Small
+                    </button>
+                    <button
+                      type="button"
+                      className={`std-meal-size-btn ${stdMealSize === "medium" ? "active" : ""}`}
+                      onClick={() => setStdMealSize("medium")}
+                    >
+                      Regular
+                    </button>
+                    <button
+                      type="button"
+                      className={`std-meal-size-btn ${stdMealSize === "large" ? "active" : ""}`}
+                      onClick={() => setStdMealSize("large")}
+                    >
+                      Large
+                    </button>
+                  </div>
+                  <div className="servings-total">
+                    {stdMealPoints} point{stdMealPoints !== 1 ? "s" : ""}
+                  </div>
+                  {penalty > 1 && (
+                    <div className="penalty-warning">
+                      {penalty}x penalty — outside eating window
+                    </div>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label>Note (optional)</label>
+                  <input
+                    type="text"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="e.g. From the pub, homemade..."
+                  />
+                </div>
+
+                {error && <p className="form-error">{error}</p>}
+
+                <button
+                  type="submit"
+                  className="btn primary"
+                  disabled={saving}
+                >
+                  {saving
+                    ? "Logging..."
+                    : `Log Meal (${stdMealPoints} pts)`}
+                </button>
+              </>
             )}
 
             {selectedCat && (

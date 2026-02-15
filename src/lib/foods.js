@@ -79,6 +79,7 @@ export const GROUP_COLORS = {
 
 export function getCategoryByKey(key) {
   if (key === "rated_meal") return { key: "rated_meal", name: "Rated Meal", emoji: "\u{1F37D}\uFE0F", group: "medium" };
+  if (key === "standard_meal") return { key: "standard_meal", name: "Meal", emoji: "\u{1F37D}\uFE0F", group: "medium" };
   return FOOD_CATEGORIES.find((c) => c.key === key);
 }
 
@@ -93,6 +94,49 @@ export function formatServings(n) {
   if (frac === 0) return String(whole);
   if (fractions[frac]) return `${whole}${fractions[frac]}`;
   return String(n);
+}
+
+/**
+ * Standard meals for quick logging.
+ * Each meal has component items used to calculate mode-aware points.
+ */
+export const STANDARD_MEALS = [
+  { key: "meat_veg", name: "Meat & 3 Veg", emoji: "\uD83E\uDD69",
+    items: [{ cat: "lean-protein", palms: 1 }, { cat: "vegetables", palms: 2 }, { cat: "grains", palms: 0.5 }] },
+  { key: "chicken_salad", name: "Chicken Salad", emoji: "\uD83E\uDD57",
+    items: [{ cat: "lean-protein", palms: 1 }, { cat: "vegetables", palms: 2 }, { cat: "fats", palms: 0.25 }] },
+  { key: "burger_fries", name: "Burger & Fries", emoji: "\uD83C\uDF54",
+    items: [{ cat: "red-meat", palms: 1 }, { cat: "grains", palms: 1 }, { cat: "fats", palms: 0.5 }] },
+  { key: "pasta", name: "Pasta", emoji: "\uD83C\uDF5D",
+    items: [{ cat: "grains", palms: 1.5 }, { cat: "lean-protein", palms: 0.5 }, { cat: "fats", palms: 0.25 }] },
+  { key: "stir_fry", name: "Stir-Fry & Rice", emoji: "\uD83E\uDD58",
+    items: [{ cat: "lean-protein", palms: 1 }, { cat: "vegetables", palms: 1 }, { cat: "grains", palms: 1 }] },
+  { key: "pizza", name: "Pizza (2-3 slices)", emoji: "\uD83C\uDF55",
+    items: [{ cat: "processed", palms: 1 }] },
+  { key: "sandwich", name: "Sandwich", emoji: "\uD83E\uDD6A",
+    items: [{ cat: "grains", palms: 1 }, { cat: "lean-protein", palms: 0.5 }, { cat: "fats", palms: 0.25 }] },
+  { key: "curry_rice", name: "Curry & Rice", emoji: "\uD83C\uDF5B",
+    items: [{ cat: "fatty-protein", palms: 1 }, { cat: "grains", palms: 1 }, { cat: "fats", palms: 0.5 }] },
+  { key: "fish_chips", name: "Fish & Chips", emoji: "\uD83D\uDC1F",
+    items: [{ cat: "fatty-protein", palms: 1 }, { cat: "grains", palms: 1 }, { cat: "fats", palms: 0.5 }] },
+  { key: "omelette", name: "Omelette", emoji: "\uD83C\uDF73",
+    items: [{ cat: "fatty-protein", palms: 1 }, { cat: "vegetables", palms: 0.5 }] },
+  { key: "soup_bread", name: "Soup & Bread", emoji: "\uD83C\uDF72",
+    items: [{ cat: "vegetables", palms: 1.5 }, { cat: "grains", palms: 0.5 }] },
+  { key: "roast_dinner", name: "Roast Dinner", emoji: "\uD83C\uDF56",
+    items: [{ cat: "red-meat", palms: 1 }, { cat: "vegetables", palms: 1 }, { cat: "grains", palms: 1 }, { cat: "fats", palms: 0.25 }] },
+];
+
+/**
+ * Calculate the point cost of a standard meal in a given mode.
+ */
+export function getStandardMealCost(meal, mode = "hybrid") {
+  const map = getPointsMap(mode);
+  let total = 0;
+  for (const item of meal.items) {
+    total += (map[item.cat] || 0) * item.palms;
+  }
+  return Math.round(total);
 }
 
 /**
@@ -117,6 +161,12 @@ export const DRINK_SUBTYPES = {
  * Format the detail line for a food log entry (serving info only, no user note).
  */
 export function formatLogDetail(log) {
+  if (log.category === "standard_meal") {
+    const parts = (log.note || "Meal").split(" \u2022 ");
+    const mealName = parts[0];
+    const sizeLabel = log.servings <= 0.75 ? "Small" : log.servings >= 1.25 ? "Large" : "";
+    return sizeLabel ? `${sizeLabel} ${mealName}` : mealName;
+  }
   if (log.category === "rated_meal") {
     const parts = (log.note || "Rated meal").split(" \u2022 ");
     const ratingLabels = ["Very Healthy", "Healthy", "Average", "Unhealthy", "Very Unhealthy"];
@@ -142,6 +192,10 @@ export function formatLogDetail(log) {
  */
 export function getUserNote(log) {
   if (!log.note) return null;
+  if (log.category === "standard_meal") {
+    const parts = log.note.split(" \u2022 ");
+    return parts.length > 1 ? parts.slice(1).join(" \u2022 ") : null;
+  }
   if (log.category === "rated_meal") {
     const parts = log.note.split(" \u2022 ");
     const ratingLabels = ["Very Healthy", "Healthy", "Average", "Unhealthy", "Very Unhealthy"];

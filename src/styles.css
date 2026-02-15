@@ -1521,6 +1521,99 @@ main {
   padding: 0;
 }
 
+/* ===== Common Meals Button ===== */
+.common-meals-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.65rem 1rem;
+  margin-bottom: 0.75rem;
+  background: var(--primary-a6);
+  border: 2px solid var(--primary-a15);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary-dark);
+  transition: all 0.15s ease;
+}
+
+.common-meals-btn:hover {
+  background: var(--primary-a10);
+  border-color: var(--primary);
+}
+
+.common-meals-arrow {
+  font-size: 1rem;
+  color: var(--primary);
+}
+
+/* ===== Standard Meal Selected Preview ===== */
+.meal-selected-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+}
+
+.meal-selected-name {
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.meal-change-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 0.3rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.meal-change-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* ===== Standard Meal Size Picker ===== */
+.std-meal-sizes {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.std-meal-size-btn {
+  flex: 1;
+  padding: 0.6rem 0.5rem;
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.std-meal-size-btn:hover {
+  border-color: var(--primary);
+}
+
+.std-meal-size-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
 /* ===== History Page ===== */
 .history-controls {
   display: flex;
