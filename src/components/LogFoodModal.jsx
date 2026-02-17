@@ -11,6 +11,11 @@ const PALM_OPTIONS = [
   { value: 3, label: "3" },
   { value: 4, label: "4" },
   { value: 5, label: "5" },
+  { value: 6, label: "6" },
+  { value: 7, label: "7" },
+  { value: 8, label: "8" },
+  { value: 9, label: "9" },
+  { value: 10, label: "10" },
 ];
 
 const SPOON_OPTIONS = [
@@ -19,6 +24,11 @@ const SPOON_OPTIONS = [
   { value: 3, label: "3" },
   { value: 4, label: "4" },
   { value: 5, label: "5" },
+  { value: 6, label: "6" },
+  { value: 7, label: "7" },
+  { value: 8, label: "8" },
+  { value: 9, label: "9" },
+  { value: 10, label: "10" },
 ];
 
 const MEAL_SIZES = [
@@ -73,6 +83,7 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
   const [mealView, setMealView] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState(null);
   const [stdMealSize, setStdMealSize] = useState("medium"); // "small", "medium", "large"
+  const [stdMealQty, setStdMealQty] = useState(1);
   const [unit, setUnit] = useState("palms"); // "palms" or "spoonfuls"
   const [servings, setServings] = useState(1);
   const [note, setNote] = useState("");
@@ -128,7 +139,7 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
   // Standard meal calculations
   const stdMealBaseCost = selectedMeal ? getStandardMealCost(selectedMeal, pointsMode) : 0;
   const stdMealSizeMultiplier = stdMealSize === "small" ? 0.7 : stdMealSize === "large" ? 1.5 : 1;
-  const stdMealPoints = Math.round(Math.round(stdMealBaseCost * stdMealSizeMultiplier) * penalty);
+  const stdMealPoints = Math.round(Math.round(stdMealBaseCost * stdMealSizeMultiplier * stdMealQty) * penalty);
 
   // Rate mode calculations
   const sizeMultiplier = mealSize === "taste"
@@ -215,8 +226,8 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
       return;
     }
 
-    const mealNote = selectedMeal.name;
-    const logNote = note ? `${mealNote} \u2022 ${note}` : mealNote;
+    const mealLabel = stdMealQty > 1 ? `${selectedMeal.name} x${stdMealQty}` : selectedMeal.name;
+    const logNote = note ? `${mealLabel} \u2022 ${note}` : mealLabel;
 
     const loggedAt = logTime === "now" ? new Date() : logDate;
     const { error: insertError } = await supabase
@@ -224,7 +235,7 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
       .insert({
         user_id: user.id,
         category: "standard_meal",
-        servings: stdMealSizeMultiplier,
+        servings: stdMealSizeMultiplier * stdMealQty,
         points: stdMealPoints,
         note: logNote,
         logged_at: loggedAt.toISOString(),
@@ -374,6 +385,7 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
                       setSelectedKey(null);
                       setMealView(false);
                       setStdMealSize("medium");
+                      setStdMealQty(1);
                     }}
                   >
                     <span className="food-grid-emoji">{meal.emoji}</span>
@@ -509,6 +521,19 @@ export default function LogFoodModal({ onClose, onAdded, profile }) {
                     >
                       Large
                     </button>
+                  </div>
+                  <label className="servings-label">Quantity</label>
+                  <div className="std-meal-sizes">
+                    {[1, 2, 3, 4, 5].map((q) => (
+                      <button
+                        key={q}
+                        type="button"
+                        className={`std-meal-size-btn ${stdMealQty === q ? "active" : ""}`}
+                        onClick={() => setStdMealQty(q)}
+                      >
+                        x{q}
+                      </button>
+                    ))}
                   </div>
                   <div className="servings-total">
                     {stdMealPoints} point{stdMealPoints !== 1 ? "s" : ""}
